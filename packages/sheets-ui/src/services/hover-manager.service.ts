@@ -23,7 +23,7 @@ import { BehaviorSubject, distinctUntilChanged, map, of, Subject } from 'rxjs';
 import { getHoverCellPosition } from '../common/utils';
 import { SheetScrollManagerService } from './scroll-manager.service';
 import { SheetSkeletonManagerService } from './sheet-skeleton-manager.service';
-import { calcPadding, calculateDocSkeletonRects } from './utils/doc-skeleton-util';
+import { calcDrawingOffsets, calcPadding, calculateDocSkeletonRects } from './utils/doc-skeleton-util';
 
 export interface IHoverCellPosition {
     position: IPosition;
@@ -305,7 +305,8 @@ export class HoverManagerService extends Disposable {
         const { topOffset = 0, leftOffset = 0 } = cellData?.fontRenderExtension ?? {};
         if (font?.documentSkeleton) {
             const { paddingLeft, paddingTop } = calcPadding(cell, font, (cellData?.v !== null && cellData?.v !== undefined) ? !Number.isNaN(+cellData.v) : false);
-            const rects = calculateDocSkeletonRects(font.documentSkeleton, paddingLeft, paddingTop);
+            const drawingOffset = calcDrawingOffsets(cell, font);
+            const rects = calculateDocSkeletonRects(font.documentSkeleton, paddingLeft, paddingTop, drawingOffset);
 
             const innerX = offsetX - position.startX - leftOffset;
             const innerY = offsetY - position.startY - topOffset;

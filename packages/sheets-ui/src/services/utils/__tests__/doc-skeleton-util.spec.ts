@@ -18,7 +18,7 @@ import { HorizontalAlign, IUniverInstanceService, VerticalAlign } from '@univerj
 import { IRenderManagerService } from '@univerjs/engine-render';
 import { describe, expect, it, vi } from 'vitest';
 import { IEditorBridgeService } from '../../editor-bridge.service';
-import { calcPadding, getCustomRangePosition, getEditingCustomRangePosition } from '../doc-skeleton-util';
+import { calcDrawingOffsets, calcPadding, calculateDocSkeletonRects, getCustomRangePosition, getEditingCustomRangePosition } from '../doc-skeleton-util';
 
 vi.mock('@univerjs/docs-ui', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@univerjs/docs-ui')>();
@@ -61,6 +61,28 @@ function createDocSkeleton(customRangeId = 'range-1') {
     } as any;
 }
 
+function createDocSkeletonWithDrawing() {
+    return {
+        getSkeletonData: () => ({
+            pages: [{
+                height: 10,
+                width: 30,
+                skeDrawings: new Map([
+                    ['drawing-1', { drawingId: 'drawing-1', aLeft: 1, aTop: 2, width: 6, height: 4 }],
+                ]),
+            }],
+        }),
+        getViewModel: () => ({
+            getDataModel: () => ({
+                getBody: () => ({
+                    customRanges: [],
+                    paragraphs: [],
+                }),
+            }),
+        }),
+    } as any;
+}
+
 describe('doc-skeleton-util', () => {
     it('calcPadding handles vertical and horizontal alignment branches', () => {
         const cell = {
@@ -94,6 +116,42 @@ describe('doc-skeleton-util', () => {
             horizontalAlign: HorizontalAlign.UNSPECIFIED,
         };
         expect(calcPadding(cell, unspecifiedNumeric, true)).toEqual({ paddingTop: 20, paddingLeft: 30 });
+    });
+
+    it('separates cell-image offsets from text padding', () => {
+        const cell = {
+            mergeInfo: {
+                startX: 10,
+                endX: 60,
+                startY: 20,
+                endY: 50,
+            },
+        } as any;
+        const font = {
+            documentSkeleton: createDocSkeletonWithDrawing(),
+            verticalAlign: VerticalAlign.BOTTOM,
+            horizontalAlign: HorizontalAlign.UNSPECIFIED,
+        } as any;
+
+        expect(calcDrawingOffsets(cell, font)).toEqual({ left: 2, top: 18 });
+
+        const rects = calculateDocSkeletonRects(font.documentSkeleton, 30, 20, calcDrawingOffsets(cell, font));
+        expect(rects.drawings).toEqual([{
+            drawingId: 'drawing-1',
+            rect: {
+                top: 20,
+                bottom: 24,
+                left: 3,
+                right: 9,
+            },
+            drawing: {
+                drawingId: 'drawing-1',
+                aLeft: 1,
+                aTop: 2,
+                width: 6,
+                height: 4,
+            },
+        }]);
     });
 
     it('getCustomRangePosition returns transformed rects and label', () => {

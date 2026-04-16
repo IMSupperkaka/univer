@@ -133,7 +133,40 @@ const calcBulletPosition = (skeleton: DocumentSkeleton, paragraph: IParagraph, p
     };
 };
 
-export const calculateDocSkeletonRects = (docSkeleton: DocumentSkeleton, paddingLeft = 0, paddingTop = 0) => {
+const DRAWING_PADDING = 2;
+
+export function calcDrawingOffsets(cell: ICellWithCoord, font: IFontCacheItem) {
+    const height = font.documentSkeleton?.getSkeletonData()?.pages[0].height ?? 0;
+    const width = font.documentSkeleton?.getSkeletonData()?.pages[0].width ?? 0;
+    const vt = font.verticalAlign;
+    const ht = font.horizontalAlign;
+
+    let top = cell.mergeInfo.endY - cell.mergeInfo.startY - height - DRAWING_PADDING;
+    if (vt === VerticalAlign.TOP) {
+        top = DRAWING_PADDING;
+    } else if (vt === VerticalAlign.MIDDLE) {
+        top = (cell.mergeInfo.endY - cell.mergeInfo.startY - height) / 2;
+    }
+
+    let left = DRAWING_PADDING;
+    if (ht === HorizontalAlign.RIGHT) {
+        left = cell.mergeInfo.endX - cell.mergeInfo.startX - width - DRAWING_PADDING;
+    } else if (ht === HorizontalAlign.CENTER) {
+        left = (cell.mergeInfo.endX - cell.mergeInfo.startX - width) / 2;
+    }
+
+    return {
+        left,
+        top,
+    };
+}
+
+export const calculateDocSkeletonRects = (
+    docSkeleton: DocumentSkeleton,
+    paddingLeft = 0,
+    paddingTop = 0,
+    drawingOffset: { left: number; top: number } = { left: paddingLeft, top: paddingTop }
+) => {
     const docModel = docSkeleton.getViewModel().getDataModel();
     const hyperLinks = docModel.getBody()?.customRanges?.filter((range) => range.rangeType === CustomRangeType.HYPERLINK) ?? [];
     const checkLists = docModel.getBody()?.paragraphs?.filter((p) => p.bullet?.listType.indexOf(PresetListType.CHECK_LIST) === 0) ?? [];
@@ -145,10 +178,10 @@ export const calculateDocSkeletonRects = (docSkeleton: DocumentSkeleton, padding
             ? Array.from(drawings.keys()).map((key) => ({
                 drawingId: key,
                 rect: {
-                    top: drawings!.get(key)!.aTop + paddingTop,
-                    bottom: drawings!.get(key)!.aTop + drawings!.get(key)!.height + paddingTop,
-                    left: drawings!.get(key)!.aLeft + paddingLeft,
-                    right: drawings!.get(key)!.aLeft + drawings!.get(key)!.width + paddingLeft,
+                    top: drawings!.get(key)!.aTop + drawingOffset.top,
+                    bottom: drawings!.get(key)!.aTop + drawings!.get(key)!.height + drawingOffset.top,
+                    left: drawings!.get(key)!.aLeft + drawingOffset.left,
+                    right: drawings!.get(key)!.aLeft + drawings!.get(key)!.width + drawingOffset.left,
                 },
                 drawing: drawings.get(key)!,
             }))
